@@ -19,13 +19,26 @@ def gzip_compressor(filename):
     subprocess.run(['gzip', '-v9', filename], check = True)
     return output_name
 
+def lzma2_compressor(filename):
+    output_name = filename+'.xz'
+    path_cannot_exist(output_name)
+    subprocess.run(['xz', '-6ev', '-T8', '-M80%', filename], check = True)
+    return output_name
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices = ['archive','compress','extract'] )
     parser.add_argument('target')
+    parser.add_argument('--compressor', choices = ['deflate','lzma2'], default = 'lzma2')
     args = parser.parse_args()
     assert os.path.exists(args.target)
     assert os.path.basename(args.target) == args.target
+
+    match args.compressor:
+        case 'deflate':
+            compressor = gzip_compressor
+        case 'lzma2':
+            compressor = lzma2_compressor
 
     if args.mode == 'archive':
         archiver(args.target)
@@ -34,7 +47,7 @@ def main():
         filename = args.target
         if os.path.splitext(filename)[1] != '.tar':
             filename = archiver(filename)
-        gzip_compressor(filename)
+        compressor(filename)
 
 
     elif args.mode == 'extract':
@@ -50,6 +63,10 @@ def main():
                 uncompressed_name = prefix + '.tar'
                 path_cannot_exist(uncompressed_name)
                 subprocess.run(['gunzip', '-v', args.target], check = True)
+            case '.xz':
+                uncompressed_name = prefix
+                path_cannot_exist(uncompressed_name)
+                subprocess.run(['xz', '-dv', '-T8', '-M80%', args.target], check = True)
             case '.tar':
                 uncompressed_name = prefix + '.tar'
             case _:
