@@ -3,6 +3,7 @@ import argparse,sys
 import subprocess
 import tempfile
 from pathlib import Path
+import shutil
 
 def path_cannot_exist(p):
     assert not p.exists(), f'{p} exists'
@@ -14,13 +15,17 @@ def append_suffix(p, s):
     return p.with_suffix(p.suffix + s)
 
 def path_move(p1, p2):
-    path_must_exist(p1)
+    assert not p1.is_symlink() and not p2.is_symlink()
+    assert p1.resolve(strict = True) != p2.resolve()
+
     if p2.is_dir():
-        return p1.rename(p2 / p1.name)
+        path_cannot_exist(p2 / p1.name)
     elif p2.is_file():
         raise Exception(f'{p2} exists')
-    else:
-        return p1.rename(p2)
+
+    new_path = shutil.move(p1, p2)
+    assert new_path is not None
+    return Path(new_path)
 
 def archiver(obj_name):
     assert obj_name.suffix != '.tar'
