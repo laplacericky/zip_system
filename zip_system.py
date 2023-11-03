@@ -7,8 +7,20 @@ from pathlib import Path
 def path_cannot_exist(p):
     assert not p.exists(), f'{p} exists'
 
+def path_must_exist(p):
+    assert p.exists(), f'{p} not exists'
+
 def append_suffix(p, s):
     return p.with_suffix(p.suffix + s)
+
+def path_move(p1, p2):
+    path_must_exist(p1)
+    if p2.is_dir():
+        return p1.rename(p2 / p1.name)
+    elif p2.is_file():
+        raise Exception(f'{p2} exists')
+    else:
+        return p1.rename(p2)
 
 def archiver(obj_name):
     assert obj_name.suffix != '.tar'
@@ -48,7 +60,7 @@ def main():
     parser.add_argument('--compressor', choices = ['deflate','lzma2','bzip2'], default = 'lzma2')
     args = parser.parse_args()
     target_path = Path(args.target)
-    assert target_path.exists()
+    path_must_exist(target_path)
     assert target_path.parent == Path('.')
 
     match args.compressor:
@@ -102,9 +114,9 @@ def main():
                 repeated_path = uncompressed_name / uncompressed_name
                 if len(contents) == 1 and repeated_path.is_dir():
                     temp_folder = Path(tempfile.mkdtemp(prefix=str(uncompressed_name), dir=Path('.')))
-                    subprocess.run(['mv', repeated_path, temp_folder], check = True)
+                    temp_uncompressed_name = path_move(repeated_path, temp_folder)
                     uncompressed_name.rmdir()
-                    subprocess.run(['mv', temp_folder / uncompressed_name, Path('.')], check = True)
+                    path_move(temp_uncompressed_name, Path('.'))
                     temp_folder.rmdir()
                 target_path.unlink()
             case '.tar':
