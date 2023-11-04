@@ -31,6 +31,8 @@ def archiver(obj_name):
     assert obj_name.suffix != '.tar'
     output_name = append_suffix(obj_name, '.tar')
     path_cannot_exist(output_name)
+    
+    #By default, tar archives symlinks as symlinks and will not follow the symlinks
     subprocess.run(['tar', 'cf', output_name, obj_name], check = True)
     return output_name
 
