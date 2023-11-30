@@ -60,6 +60,17 @@ def pre_check(uncompressed_name):
     if suffix == '.tar':
         path_cannot_exist(prefix)
 
+def truncate(uncompressed_name):
+    contents = list(uncompressed_name.iterdir())
+    repeated_path = uncompressed_name / uncompressed_name
+    if len(contents) == 1 and repeated_path.is_dir():
+        temp_folder = Path(tempfile.mkdtemp(prefix=str(uncompressed_name), dir=Path('.')))
+        temp_uncompressed_name = path_move(repeated_path, temp_folder)
+        uncompressed_name.rmdir()
+        path_move(temp_uncompressed_name, Path('.'))
+        temp_folder.rmdir()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', choices = ['archive','compress','extract'] )
@@ -112,19 +123,20 @@ def main():
                 path_cannot_exist(uncompressed_name)
                 pre_check(uncompressed_name)
                 subprocess.run(['xz', '-dv', '-T8', '-M80%', target_path], check = True)
-            case '.zip'|'.7z'|'.rar':
+            case '.rar':
+                uncompressed_name = prefix
+                path_cannot_exist(uncompressed_name)
+                pre_check(uncompressed_name)
+                uncompressed_name.mkdir()
+                subprocess.run(['unrar', 'x', target_path, uncompressed_name], check = True)
+                truncate(uncompressed_name)
+                target_path.unlink()
+            case '.zip'|'.7z':
                 uncompressed_name = prefix
                 path_cannot_exist(uncompressed_name)
                 pre_check(uncompressed_name)
                 subprocess.run(['unar', '-d', target_path], check = True)
-                contents = list(uncompressed_name.iterdir())
-                repeated_path = uncompressed_name / uncompressed_name
-                if len(contents) == 1 and repeated_path.is_dir():
-                    temp_folder = Path(tempfile.mkdtemp(prefix=str(uncompressed_name), dir=Path('.')))
-                    temp_uncompressed_name = path_move(repeated_path, temp_folder)
-                    uncompressed_name.rmdir()
-                    path_move(temp_uncompressed_name, Path('.'))
-                    temp_folder.rmdir()
+                truncate(uncompressed_name)
                 target_path.unlink()
             case '.tar':
                 uncompressed_name = append_suffix(prefix, '.tar')
