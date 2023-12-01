@@ -28,10 +28,12 @@ def path_move(p1, p2):
     return Path(new_path)
 
 def archiver(obj_name):
-    assert obj_name.suffix != '.tar'
+    if obj_name.is_file():
+        assert obj_name.suffix != '.tar'
+        
     output_name = append_suffix(obj_name, '.tar')
     path_cannot_exist(output_name)
-    
+
     #By default, tar archives symlinks as symlinks and will not follow the symlinks
     subprocess.run(['tar', 'cf', output_name, obj_name], check = True)
     return output_name
@@ -80,6 +82,7 @@ def main():
     target_path = Path(args.target)
     path_must_exist(target_path)
     assert target_path.parent == Path('.')
+    assert not target_path.is_symlink()
 
     match args.compressor:
         case 'deflate':
@@ -93,7 +96,7 @@ def main():
         archiver(target_path)
 
     elif args.mode == 'compress':
-        if target_path.suffix != '.tar':
+        if target_path.is_dir() or target_path.suffix != '.tar':
             target_path = archiver(target_path)
         compressor(target_path)
 
@@ -126,7 +129,6 @@ def main():
             case '.rar':
                 uncompressed_name = prefix
                 path_cannot_exist(uncompressed_name)
-                pre_check(uncompressed_name)
                 uncompressed_name.mkdir()
                 subprocess.run(['unrar', 'x', target_path, uncompressed_name], check = True)
                 truncate(uncompressed_name)
@@ -134,7 +136,6 @@ def main():
             case '.zip'|'.7z':
                 uncompressed_name = prefix
                 path_cannot_exist(uncompressed_name)
-                pre_check(uncompressed_name)
                 subprocess.run(['unar', '-d', target_path], check = True)
                 truncate(uncompressed_name)
                 target_path.unlink()
@@ -145,7 +146,7 @@ def main():
 
         prefix, suffix = Path(uncompressed_name.stem), uncompressed_name.suffix
 
-        if suffix == '.tar':
+        if suffix == '.tar' and not uncompressed_name.is_symlink() and uncompressed_name.is_file():
             path_cannot_exist(prefix)
             subprocess.run(['tar', 'xf', uncompressed_name, '--one-top-level'], check = True)
             uncompressed_name.unlink()
